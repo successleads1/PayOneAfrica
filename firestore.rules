@@ -1,0 +1,144 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. GLOBAL SAFETY NET
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. GLOBAL HELPERS
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+    function isAdmin() { 
+      return isSignedIn() && request.auth.token.email == 'feelathomeincapetown@gmail.com';
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // 3. ENTITY VALIDATORS
+    function isValidMerchant(data) {
+      return data.ownerId == request.auth.uid 
+        && data.businessName is string && data.businessName.size() <= 100
+        && data.status in ['pending', 'approved', 'suspended']
+        && (data.balance == 0 || data.balance is number)
+        && (data.idDocumentUrl == '' || (data.idDocumentUrl is string && data.idDocumentUrl.size() <= 1000))
+        && (!('apiKey' in data) || (data.apiKey is string && data.apiKey.size() <= 200))
+        && (!('testApiKey' in data) || (data.testApiKey is string && data.testApiKey.size() <= 200))
+        && data.keys().hasAll(['ownerId', 'businessName', 'status']);
+    }
+
+    // 4. COLLECTION RULES
+
+    // MERCHANTS
+    match /merchants/{merchantId} {
+      // Merchants can read their own profile
+      allow get: if isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin());
+      // Admin can list all
+      allow list: if isAdmin();
+      // Only admin or owner can create, but status must be pending if owner
+      allow create: if isSignedIn() && isValidMerchant(incoming()) && (
+        isAdmin() || (incoming().status == 'pending' && incoming().balance == 0)
+      );
+      // Updates: Only admin can change status or balance. Owners can change business name if not suspended.
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          existing().ownerId == request.auth.uid 
+          && existing().status != 'suspended'
+          && incoming().diff(existing()).affectedKeys().hasOnly(['businessName', 'updatedAt', 'bankAccount', 'apiKey', 'testApiKey'])
+          && incoming().ownerId == existing().ownerId
+          && incoming().status == existing().status
+          && incoming().balance == existing().balance
+        )
+      );
+
+      match /statusHistory/{historyId} {
+        allow read: if isAdmin();
+        allow create: if isAdmin();
+      }
+    }
+
+    // TRANSACTIONS
+    match /transactions/{transactionId} {
+      // Merchants can only list their own transactions
+      // We enforce this by checking the merchantId if the merchant doc belongs to them
+      allow list: if isSignedIn() && (
+        isAdmin() || (
+          // This is a cost-optimized check: assumes client filters by merchantId
+          resource.data.merchantId != null && 
+          exists(/databases/$(database)/documents/merchants/$(resource.data.merchantId)) &&
+          get(/databases/$(database)/documents/merchants/$(resource.data.merchantId)).data.ownerId == request.auth.uid
+        )
+      );
+      allow get: if isSignedIn() && (
+        isAdmin() || (
+          get(/databases/$(database)/documents/merchants/$(existing().merchantId)).data.ownerId == request.auth.uid
+        )
+      );
+      // Transactions are primarily written by the server-side API, 
+      // but if written via client (mock), enforce rules.
+      allow create: if isAdmin(); // Lock down to admin (server uses admin)
+    }
+
+    // PAYMENT LINKS
+    match /paymentLinks/{linkId} {
+      // Public can read to pay
+      allow get: if true;
+      // Merchants manage their own
+      allow list: if isSignedIn() && (
+        isAdmin() || (
+          // We can't easily cross-reference here without get(), so we check the field
+          // The client should filter by merchantId
+          resource.data.merchantId != null &&
+          get(/databases/$(database)/documents/merchants/$(resource.data.merchantId)).data.ownerId == request.auth.uid
+        )
+      );
+      allow create: if isSignedIn() && (
+        isAdmin() || (
+          incoming().merchantId != null &&
+          get(/databases/$(database)/documents/merchants/$(incoming().merchantId)).data.ownerId == request.auth.uid
+        )
+      );
+      // Only status can be updated (e.g. marking as paid/expired)
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          existing().merchantId != null &&
+          get(/databases/$(database)/documents/merchants/$(existing().merchantId)).data.ownerId == request.auth.uid &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        )
+      );
+    }
+
+    // SETTLEMENTS
+    match /settlements/{settlementId} {
+      allow read: if isSignedIn() && (
+        isAdmin() || (
+          get(/databases/$(database)/documents/merchants/$(existing().merchantId)).data.ownerId == request.auth.uid
+        )
+      );
+      allow write: if isAdmin();
+    }
+
+    // SUPPORT
+    match /supportThreads/{threadId} {
+      allow list: if isSignedIn() && (isAdmin() || resource.data.merchantId == request.auth.uid);
+      allow get: if isSignedIn() && (isAdmin() || resource.data.merchantId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().merchantId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          existing().merchantId == request.auth.uid && 
+          incoming().diff(existing()).affectedKeys().hasOnly(['lastMessageAt', 'unreadCountByAdmin', 'unreadCountByMerchant', 'status'])
+        )
+      );
+    }
+
+    match /supportMessages/{messageId} {
+      allow list: if isSignedIn() && (isAdmin() || resource.data.merchantId == request.auth.uid);
+      allow create: if isSignedIn() && (
+        isAdmin() || 
+        (incoming().senderId == request.auth.uid && incoming().senderType == 'merchant' && incoming().merchantId == request.auth.uid)
+      ) && exists(/databases/$(database)/documents/supportThreads/$(incoming().threadId));
+    }
+  }
+}

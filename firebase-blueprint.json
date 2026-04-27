@@ -1,0 +1,156 @@
+{
+  "entities": {
+    "Merchant": {
+      "title": "Merchant",
+      "description": "Represents a business registered on PayOneAfrica",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string", "description": "Auth ID of the merchant owner" },
+        "businessName": { "type": "string" },
+        "registrationNumber": { "type": "string" },
+        "taxNumber": { "type": "string" },
+        "bankAccount": {
+          "type": "object",
+          "properties": {
+            "accountName": { "type": "string" },
+            "accountNumber": { "type": "string" },
+            "bankName": { "type": "string" },
+            "branchCode": { "type": "string" }
+          }
+        },
+        "status": { "type": "string", "enum": ["pending", "approved", "suspended"] },
+        "idDocumentUrl": { "type": "string", "description": "URL to uploaded ID/Passport" },
+        "apiKey": { "type": "string", "description": "Live API key" },
+        "testApiKey": { "type": "string", "description": "Sandbox/Test API key" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "businessName", "status"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A payment transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "merchantId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "success", "failed", "refunded"] },
+        "provider": { "type": "string", "enum": ["mock", "stripe", "paypal", "eft"] },
+        "customerEmail": { "type": "string" },
+        "description": { "type": "string" },
+        "fee": { "type": "number", "description": "Gateway fee (e.g. 2.5%)" },
+        "netAmount": { "type": "number", "description": "Amount after fees" },
+        "customerIp": { "type": "string", "description": "IP address of the customer" },
+        "settlementId": { "type": "string", "description": "Reference to the settlement record" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["merchantId", "amount", "status", "provider"]
+    },
+    "PaymentLink": {
+      "title": "Payment Link",
+      "description": "A reusable or single-use link for payment collection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "merchantId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "paid", "expired"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time", "description": "Optional expiry" }
+      },
+      "required": ["merchantId", "amount", "status"]
+    },
+    "SupportThread": {
+      "title": "Support Thread",
+      "description": "A conversation between a merchant and support",
+      "type": "object",
+      "properties": {
+        "merchantId": { "type": "string" },
+        "merchantName": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "unreadCountByAdmin": { "type": "number" },
+        "unreadCountByMerchant": { "type": "number" }
+      },
+      "required": ["merchantId", "status"]
+    },
+    "SupportMessage": {
+      "title": "Support Message",
+      "description": "An individual message in a support thread",
+      "type": "object",
+      "properties": {
+        "threadId": { "type": "string" },
+        "merchantId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderType": { "type": "string", "enum": ["merchant", "admin"] },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["threadId", "merchantId", "senderId", "senderType", "content"]
+    },
+    "Settlement": {
+      "title": "Settlement",
+      "description": "A payout to a merchant",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "merchantId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["queued", "paid", "failed", "cancelled"] },
+        "scheduledDate": { "type": "string", "format": "date-time" },
+        "paidAt": { "type": "string", "format": "date-time" },
+        "transactionIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["merchantId", "amount", "status", "scheduledDate"]
+    },
+    "StatusHistory": {
+      "title": "Status History",
+      "description": "Record of a merchant status change",
+      "type": "object",
+      "properties": {
+        "oldStatus": { "type": "string" },
+        "newStatus": { "type": "string" },
+        "adminId": { "type": "string" },
+        "adminEmail": { "type": "string" },
+        "reason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["oldStatus", "newStatus", "adminId", "adminEmail", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/merchants/{merchantId}": {
+      "schema": "Merchant",
+      "description": "List of merchants"
+    },
+    "/merchants/{merchantId}/statusHistory/{historyId}": {
+      "schema": "StatusHistory",
+      "description": "History of status changes for a merchant"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Global transaction log"
+    },
+    "/settlements/{settlementId}": {
+      "schema": "Settlement",
+      "description": "Payout records"
+    },
+    "/paymentLinks/{linkId}": {
+      "schema": "PaymentLink",
+      "description": "Merchant payment links"
+    },
+    "/supportThreads/{threadId}": {
+      "schema": "SupportThread",
+      "description": "Support conversation threads"
+    },
+    "/supportMessages/{messageId}": {
+      "schema": "SupportMessage",
+      "description": "Individual messages in a support thread"
+    }
+  }
+}
