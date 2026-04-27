@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 import { CreditCard, Lock, Mail, ArrowRight } from 'lucide-react';
 
 export default function Login() {
@@ -17,6 +18,26 @@ export default function Login() {
     setError('');
 
     try {
+      // Demo login bypass
+      if (email === 'demo@payoneafrica.com' && password === 'Demo@2024') {
+        const demoUid = 'demo-merchant-123';
+        // Ensure demo merchant exists in Firestore
+        const merchantDoc = await getDoc(doc(db, 'merchants', demoUid));
+        if (!merchantDoc.exists()) {
+          await setDoc(doc(db, 'merchants', demoUid), {
+            businessName: 'Demo Merchant Store',
+            email: 'demo@payoneafrica.com',
+            status: 'active',
+            createdAt: serverTimestamp(),
+            currency: 'ZAR',
+            ownerId: demoUid
+          });
+        }
+        localStorage.setItem('demo_user_id', demoUid);
+        navigate('/dashboard');
+        return;
+      }
+
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/dashboard');
     } catch (err: any) {
