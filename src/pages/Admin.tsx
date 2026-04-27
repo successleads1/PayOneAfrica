@@ -354,6 +354,12 @@ export default function Admin() {
               </div>
 
               {/* Status History Section */}
+              {selectedMerchant.status === 'suspended' && selectedMerchant.suspensionReason && (
+                <div className="bg-rose-950/20 border border-rose-500/20 p-4 rounded-2xl mb-4">
+                  <div className="text-[10px] text-rose-500/60 font-black uppercase mb-1">Current Suspension Reason</div>
+                  <div className="text-sm font-bold text-rose-400">{selectedMerchant.suspensionReason}</div>
+                </div>
+              )}
               <div className="pt-4 border-t border-slate-800">
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Status Change History</label>
                 <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
@@ -792,6 +798,9 @@ export default function Admin() {
                       Scheduled <SortIndicator activeField={sSort.field} field="scheduledDate" order={sSort.order} />
                     </div>
                   </th>
+                  <th className="p-6 text-slate-500 uppercase tracking-widest text-xs font-black">
+                    Processing Details
+                  </th>
                   <th className="p-6 text-slate-500 uppercase tracking-widest text-xs font-black cursor-pointer hover:bg-white/5 transition-colors" onClick={() => handleSort('s', 'status')}>
                     <div className="flex items-center">
                       Status <SortIndicator activeField={sSort.field} field="status" order={sSort.order} />
@@ -807,6 +816,27 @@ export default function Admin() {
                     <td className="p-6 font-bold text-lg">₦{s.amount.toLocaleString()}</td>
                     <td className="p-6 text-slate-400 text-sm">
                       {s.scheduledDate?.toDate ? format(s.scheduledDate.toDate(), 'MMM d, yyyy HH:mm') : 'Pending'}
+                    </td>
+                    <td className="p-6">
+                      {s.status === 'paid' && s.paidAt && (
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-emerald-500 font-black uppercase tracking-widest leading-none mb-1">Paid On</span>
+                          <span className="text-xs text-slate-300 font-bold">
+                            {s.paidAt?.toDate ? format(s.paidAt.toDate(), 'MMM d, HH:mm') : s.paidAt}
+                          </span>
+                        </div>
+                      )}
+                      {s.status === 'failed' && (
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-rose-500 font-black uppercase tracking-widest leading-none mb-1">Failure Reason</span>
+                          <span className="text-xs text-slate-300 font-bold max-w-[200px] truncate" title={s.failureReason}>
+                            {s.failureReason || 'Unknown Engine Error'}
+                          </span>
+                        </div>
+                      )}
+                      {s.status === 'queued' && (
+                        <span className="text-[10px] text-slate-500 italic">Awaiting Next Batch</span>
+                      )}
                     </td>
                     <td className="p-6">
                       <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
@@ -832,7 +862,7 @@ export default function Admin() {
                 ))}
                 {settlements.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest text-sm italic">
+                    <td colSpan={6} className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest text-sm italic">
                       No settlements found in the system
                     </td>
                   </tr>

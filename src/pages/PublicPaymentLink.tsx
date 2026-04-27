@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShieldCheck, Lock, CreditCard, ChevronRight, CheckCircle2, AlertCircle, Building2, Smartphone } from 'lucide-react';
+import { ShieldCheck, Lock, CreditCard, ChevronRight, CheckCircle2, AlertCircle, Building2, Smartphone, Zap, QrCode, Wallet } from 'lucide-react';
 
 export default function PublicPaymentLink() {
   const { id } = useParams();
@@ -12,7 +12,8 @@ export default function PublicPaymentLink() {
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'momo'>('card');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'momo' | 'eft' | 'scan' | 'mobicred'>('card');
+  const [email, setEmail] = useState('');
   const currencySymbols: Record<string, string> = {
     'NGN': '₦',
     'USD': '$',
@@ -75,8 +76,12 @@ export default function PublicPaymentLink() {
         currency: link.currency,
         merchantId: link.merchantId,
         status: 'success',
-        customerEmail: 'customer@example.com', // In a real app, field for this
-        provider: paymentMethod === 'card' ? 'Card' : 'MoMo',
+        customerEmail: email || 'customer@example.com',
+        provider: 
+          paymentMethod === 'card' ? 'Card' : 
+          paymentMethod === 'eft' ? 'Instant EFT' :
+          paymentMethod === 'scan' ? 'Scan to Pay' :
+          paymentMethod === 'mobicred' ? 'Mobicred' : 'MoMo',
         createdAt: new Date().toISOString(),
         paymentLinkId: link.id,
         customerIp,
@@ -183,84 +188,126 @@ export default function PublicPaymentLink() {
                   exit={{ opacity: 0, x: -20 }}
                   className="flex-1 flex flex-col"
                 >
-                  <h2 className="text-xl font-bold text-slate-900 mb-8">Payment Method</h2>
+                  <h2 className="text-xl font-bold text-slate-900 mb-6">Choose Payment Method</h2>
 
-                  <form onSubmit={handlePayment} className="space-y-6 flex-1">
-                    <div className="space-y-3">
+                  <form onSubmit={handlePayment} className="space-y-4 flex-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                       {/* Card */}
                        <label 
-                         className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                         className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                            paymentMethod === 'card' ? 'border-emerald-500 bg-emerald-50/20' : 'border-slate-100 bg-white hover:border-slate-200'
                          }`}
                          onClick={() => setPaymentMethod('card')}
                        >
-                         <div className="flex items-center gap-4">
-                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${
-                             paymentMethod === 'card' ? 'bg-white border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-400'
-                           }`}>
-                             <CreditCard size={20} />
-                           </div>
-                           <div>
-                              <p className="font-bold text-slate-900 text-sm">Credit or Debit Card</p>
-                              <p className="text-[10px] text-slate-500 font-medium tracking-wide">Visa, Mastercard, Verve</p>
-                           </div>
+                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${
+                           paymentMethod === 'card' ? 'bg-white border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-400'
+                         }`}>
+                           <CreditCard size={18} />
                          </div>
-                         <div className={`w-5 h-5 rounded-full border-4 transition-all ${
-                           paymentMethod === 'card' ? 'border-emerald-600 bg-white' : 'border-slate-200 bg-slate-50'
-                         }`} />
+                         <div>
+                            <p className="font-bold text-slate-900 text-xs">Credit & Cheque</p>
+                            <p className="text-[9px] text-slate-500 font-medium tracking-wide">Visa, Mastercard</p>
+                         </div>
                        </label>
 
+                       {/* Instant EFT */}
                        <label 
-                         className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                         className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                           paymentMethod === 'eft' ? 'border-emerald-500 bg-emerald-50/20' : 'border-slate-100 bg-white hover:border-slate-200'
+                         }`}
+                         onClick={() => setPaymentMethod('eft')}
+                       >
+                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${
+                           paymentMethod === 'eft' ? 'bg-white border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-400'
+                         }`}>
+                           <Zap size={18} />
+                         </div>
+                         <div>
+                            <p className="font-bold text-slate-900 text-xs">Instant EFT</p>
+                            <p className="text-[9px] text-slate-500 font-medium tracking-wide">By PayOneAfrica</p>
+                         </div>
+                       </label>
+
+                       {/* Scan to Pay */}
+                       <label 
+                         className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                           paymentMethod === 'scan' ? 'border-emerald-500 bg-emerald-50/20' : 'border-slate-100 bg-white hover:border-slate-200'
+                         }`}
+                         onClick={() => setPaymentMethod('scan')}
+                       >
+                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${
+                           paymentMethod === 'scan' ? 'bg-white border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-400'
+                         }`}>
+                           <QrCode size={18} />
+                         </div>
+                         <div>
+                            <p className="font-bold text-slate-900 text-xs">Scan to Pay</p>
+                            <p className="text-[9px] text-slate-500 font-medium tracking-wide">Zapper, SnapScan</p>
+                         </div>
+                       </label>
+
+                       {/* Mobicred */}
+                       <label 
+                         className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                           paymentMethod === 'mobicred' ? 'border-emerald-500 bg-emerald-50/20' : 'border-slate-100 bg-white hover:border-slate-200'
+                         }`}
+                         onClick={() => setPaymentMethod('mobicred')}
+                       >
+                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${
+                           paymentMethod === 'mobicred' ? 'bg-white border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-400'
+                         }`}>
+                           <Wallet size={18} />
+                         </div>
+                         <div>
+                            <p className="font-bold text-slate-900 text-xs">Mobicred</p>
+                            <p className="text-[9px] text-slate-500 font-medium tracking-wide">Buy now, pay later</p>
+                         </div>
+                       </label>
+
+                       {/* Mobile Money */}
+                       <label 
+                         className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                            paymentMethod === 'momo' ? 'border-emerald-500 bg-emerald-50/20' : 'border-slate-100 bg-white hover:border-slate-200'
                          }`}
                          onClick={() => setPaymentMethod('momo')}
                        >
-                         <div className="flex items-center gap-4">
-                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${
-                             paymentMethod === 'momo' ? 'bg-white border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-400'
-                           }`}>
-                             <Smartphone size={20} />
-                           </div>
-                           <div>
-                              <p className="font-bold text-slate-900 text-sm">Mobile Money (MoMo)</p>
-                              <p className="text-[10px] text-slate-500 font-medium tracking-wide">MTN MoMo, Airtel Money</p>
-                           </div>
+                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${
+                           paymentMethod === 'momo' ? 'bg-white border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-400'
+                         }`}>
+                           <Smartphone size={18} />
                          </div>
-                         <div className={`w-5 h-5 rounded-full border-4 transition-all ${
-                           paymentMethod === 'momo' ? 'border-emerald-600 bg-white' : 'border-slate-200 bg-slate-50'
-                         }`} />
+                         <div>
+                            <p className="font-bold text-slate-900 text-xs">Mobile Money</p>
+                            <p className="text-[9px] text-slate-500 font-medium tracking-wide">MTN, Airtel, Vodacom</p>
+                         </div>
                        </label>
                     </div>
 
                     <div className="space-y-4 pt-4">
-                       {paymentMethod === 'card' ? (
+                       <input 
+                         type="email" 
+                         required 
+                         value={email}
+                         onChange={(e) => setEmail(e.target.value)}
+                         placeholder="Email Address for Receipt" 
+                         className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-500 text-sm font-medium"
+                       />
+                       
+                       {paymentMethod === 'momo' && (
                          <input 
-                           type="email" 
+                           type="tel" 
                            required 
-                           placeholder="Email Address for Receipt" 
+                           placeholder="Mobile Money Number" 
                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-500 text-sm font-medium"
                          />
-                       ) : (
-                         <div className="space-y-4">
-                           <input 
-                             type="tel" 
-                             required 
-                             placeholder="Mobile Money Number" 
-                             className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-500 text-sm font-medium"
-                           />
-                           <input 
-                             type="email" 
-                             required 
-                             placeholder="Email Address for Receipt" 
-                             className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-500 text-sm font-medium"
-                           />
-                         </div>
                        )}
                        
-                       <p className="text-[10px] text-slate-400 font-medium">
-                         {paymentMethod === 'card' 
-                           ? "Your card details are handled securely. We do not store your full card number or CVV."
-                           : "A prompt will be sent to your phone to authorize the transaction."}
+                       <p className="text-[10px] text-slate-400 font-medium italic">
+                         {paymentMethod === 'card' && "Your card details are handled securely. We do not store your full card number or CVV."}
+                         {paymentMethod === 'eft' && "You will be redirected to your bank's secure page to complete the EFT."}
+                         {paymentMethod === 'scan' && "Generate a QR code to pay with your favorite banking app or Zapper/SnapScan."}
+                         {paymentMethod === 'mobicred' && "You will be redirected to your Mobicred account to approve the monthly payment."}
+                         {paymentMethod === 'momo' && "A prompt will be sent to your phone to authorize the transaction."}
                        </p>
                     </div>
 

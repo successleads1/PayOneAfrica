@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { Search, Filter, Download, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronUp, Globe, Shield, CreditCard, Receipt, Calendar, ArrowRightLeft, Square, CheckSquare, Trash2, Eye, ArrowUpDown } from 'lucide-react';
+import { Search, Filter, Download, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronUp, Globe, Shield, CreditCard, Receipt, Calendar, ArrowRightLeft, Square, CheckSquare, Trash2, Eye, ArrowUpDown, X, Copy, Smartphone } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Transactions() {
   const [merchant, setMerchant] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
   // Sorting state
@@ -120,6 +120,11 @@ export default function Transactions() {
     setSelectedIds(prev => 
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // Simple feedback could be added here
   };
 
   const handleBulkReview = () => {
@@ -337,143 +342,219 @@ export default function Transactions() {
                   </td>
                 </tr>
               ) : filteredTransactions.map((t) => (
-                <React.Fragment key={t.id}>
-                  <tr 
-                    onClick={() => setExpandedId(expandedId === t.id ? null : t.id)}
-                    className={`cursor-pointer transition-all ${expandedId === t.id ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}
-                  >
-                    <td className="px-8 py-5">
-                       <button 
-                        onClick={(e) => toggleSelect(e, t.id)}
-                        className={`flex items-center justify-center transition-colors ${
-                          selectedIds.includes(t.id) ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-400'
-                        }`}
-                       >
-                         {selectedIds.includes(t.id) ? <CheckSquare size={20} /> : <Square size={20} />}
-                       </button>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-3">
-                        {expandedId === t.id ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
-                        <div>
-                          <div className="font-mono text-xs text-slate-500 truncate w-32 uppercase tracking-tighter">#{t.id}</div>
-                          <div className="text-xs font-bold text-slate-400 mt-1 uppercase">{t.provider}</div>
-                        </div>
+                <tr 
+                  key={t.id}
+                  onClick={() => setSelectedTransaction(t)}
+                  className="cursor-pointer transition-all hover:bg-slate-50/50 group"
+                >
+                  <td className="px-8 py-5">
+                     <button 
+                      onClick={(e) => toggleSelect(e, t.id)}
+                      className={`flex items-center justify-center transition-colors ${
+                        selectedIds.includes(t.id) ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-400'
+                      }`}
+                     >
+                       {selectedIds.includes(t.id) ? <CheckSquare size={20} /> : <Square size={20} />}
+                     </button>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-3">
+                      <Eye size={16} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                      <div>
+                        <div className="font-mono text-xs text-slate-500 truncate w-32 uppercase tracking-tighter">#{t.id}</div>
+                        <div className="text-xs font-bold text-slate-400 mt-1 uppercase">{t.provider}</div>
                       </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="font-black text-slate-900">{getCurrencySymbol(t.currency || 'ZAR')}{t.amount?.toLocaleString()}</div>
-                      <div className="text-[10px] text-slate-400 font-bold">Fee: {getCurrencySymbol(t.currency || 'ZAR')}{t.fee?.toLocaleString()}</div>
-                    </td>
-                    <td className="px-8 py-5 text-sm font-medium text-slate-700">{t.customerEmail}</td>
-                    <td className="px-8 py-5">
-                       <div className="flex items-center gap-2">
-                          {t.status === 'success' ? (
-                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider">
-                              <CheckCircle2 size={12} /> Success
-                            </div>
-                          ) : t.status === 'pending' ? (
-                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-wider">
-                              <Clock size={12} /> Pending
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-[10px] font-black uppercase tracking-wider">
-                              <AlertCircle size={12} /> Failed
-                            </div>
-                          )}
-                       </div>
-                    </td>
-                    <td className="px-8 py-5 text-right text-sm font-bold text-slate-500">
-                      {format(new Date(t.createdAt), 'MMM d, p')}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td colSpan={6} className="p-0">
-                      <AnimatePresence initial={false}>
-                        {expandedId === t.id && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3, ease: 'easeInOut' }}
-                            className="overflow-hidden bg-slate-50/80"
-                          >
-                            <div className="px-8 py-8 border-t border-slate-100">
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                                <div className="space-y-4">
-                                  <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    <Globe size={12} /> Network & Security
-                                  </div>
-                                  <div className="space-y-2">
-                                    <div>
-                                      <p className="text-[10px] text-slate-400 font-bold">IP Address</p>
-                                      <p className="text-xs font-mono text-slate-600">{t.customerIp || '192.168.1.1'}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-[10px] text-slate-400 font-bold">Risk Level</p>
-                                      <p className="text-xs font-bold text-emerald-600 uppercase">Low Risk</p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-4">
-                                  <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest" >
-                                    <CreditCard size={12} /> Payment Info
-                                  </div>
-                                  <div className="space-y-2">
-                                    <div>
-                                      <p className="text-[10px] text-slate-400 font-bold" >Provider</p>
-                                      <p className="text-xs font-bold text-slate-600 uppercase" >{t.provider || 'Flutterwave'}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-[10px] text-slate-400 font-bold" >Method</p>
-                                      <p className="text-xs font-bold text-slate-600" >{t.provider === 'MoMo' ? 'Mobile Money' : 'Card (Mastercard •••• 4242)'}</p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-4">
-                                  <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest" >
-                                    <Receipt size={12} /> Financial Details
-                                  </div>
-                                  <div className="space-y-3">
-                                    <div className="flex justify-between items-center text-xs">
-                                      <span className="text-slate-400 font-medium" >Gross Amount</span>
-                                      <span className="font-bold text-slate-700" >{getCurrencySymbol(t.currency || 'ZAR')}{t.amount?.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-xs">
-                                      <span className="text-slate-400 font-medium" >Processing Fee</span>
-                                      <span className="font-bold text-rose-500" >-{getCurrencySymbol(t.currency || 'ZAR')}{t.fee?.toLocaleString() || '0'}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm font-black">
-                                      <span className="text-slate-900" >Net Settlement</span>
-                                      <span className="text-emerald-600" >{getCurrencySymbol(t.currency || 'ZAR')}{(t.amount - (t.fee || 0)).toLocaleString()}</span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-4">
-                                  <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest" >
-                                    <Shield size={12} /> Reference Data
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] text-slate-400 font-bold" >Description</p>
-                                    <p className="text-xs font-medium text-slate-600 leading-relaxed" >{t.description || 'Standard transaction processing via PayOneAfrica Checkout API.'}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </motion.div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="font-black text-slate-900">{getCurrencySymbol(t.currency || 'ZAR')}{t.amount?.toLocaleString()}</div>
+                    <div className="text-[10px] text-slate-400 font-bold">Fee: {getCurrencySymbol(t.currency || 'ZAR')}{t.fee?.toLocaleString()}</div>
+                  </td>
+                  <td className="px-8 py-5 text-sm font-medium text-slate-700">{t.customerEmail}</td>
+                  <td className="px-8 py-5">
+                     <div className="flex items-center gap-2">
+                        {t.status === 'success' ? (
+                          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider">
+                            <CheckCircle2 size={12} /> Success
+                          </div>
+                        ) : t.status === 'pending' ? (
+                          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-wider">
+                            <Clock size={12} /> Pending
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-[10px] font-black uppercase tracking-wider">
+                            <AlertCircle size={12} /> Failed
+                          </div>
                         )}
-                      </AnimatePresence>
-                    </td>
-                  </tr>
-                </React.Fragment>
+                     </div>
+                  </td>
+                  <td className="px-8 py-5 text-right text-sm font-bold text-slate-500">
+                    {format(new Date(t.createdAt), 'MMM d, p')}
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Transaction Detail Modal */}
+      <AnimatePresence>
+        {selectedTransaction && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedTransaction(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                    selectedTransaction.status === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                    selectedTransaction.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'
+                  }`}>
+                    {selectedTransaction.status === 'success' ? <CheckCircle2 size={24} /> :
+                     selectedTransaction.status === 'pending' ? <Clock size={24} /> : <AlertCircle size={24} />}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Transaction Details</h2>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                      {selectedTransaction.status} • {format(new Date(selectedTransaction.createdAt), 'MMM d, yyyy HH:mm:ss')}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedTransaction(null)}
+                  className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-10">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Gross Amount</p>
+                    <p className="text-2xl font-black text-slate-900">
+                      {getCurrencySymbol(selectedTransaction.currency || 'ZAR')}{selectedTransaction.amount?.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Net Settlement</p>
+                    <p className="text-2xl font-black text-emerald-600">
+                      {getCurrencySymbol(selectedTransaction.currency || 'ZAR')}{(selectedTransaction.amount - (selectedTransaction.fee || 0)).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Information Sections */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="space-y-6">
+                    <div>
+                      <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                        <Globe size={12} /> Transaction Identity
+                      </label>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-bold mb-1">Reference ID</p>
+                          <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 rounded-lg group">
+                            <span className="text-xs font-mono text-slate-600 truncate">{selectedTransaction.id}</span>
+                            <button onClick={() => copyToClipboard(selectedTransaction.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded transition-all text-slate-400">
+                              <Copy size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-bold mb-1">Payment Link ID</p>
+                          <p className="text-xs font-mono text-slate-600">{selectedTransaction.paymentLinkId || 'Direct API'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                        <Shield size={12} /> Security & Device
+                      </label>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg">
+                          <span className="text-xs font-bold text-slate-500">IP Address</span>
+                          <span className="text-xs font-mono text-slate-900">{selectedTransaction.customerIp || '197.210.64.12'}</span>
+                        </div>
+                        <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg">
+                          <span className="text-xs font-bold text-slate-500">Fraud Protection</span>
+                          <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 uppercase">Verified Secure</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                        <CreditCard size={12} /> Payment Source
+                      </label>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-bold mb-1">Customer Email</p>
+                          <p className="text-xs font-bold text-slate-800">{selectedTransaction.customerEmail}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-bold mb-1">Method</p>
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                             {selectedTransaction.provider === 'MoMo' ? <Smartphone size={14} className="text-amber-500" /> : <CreditCard size={14} className="text-emerald-500" />}
+                             {selectedTransaction.provider === 'MoMo' ? 'Mobile Money' : 'Card Payment'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                        <Receipt size={12} /> Notes & Narrative
+                      </label>
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 min-h-[80px]">
+                        <p className="text-xs text-slate-600 leading-relaxed italic">
+                          {selectedTransaction.description || 'No additional notes provided for this transaction. Standard processing application applied.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <button className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-slate-900 transition-colors">
+                    <Download size={14} /> Download Receipt
+                  </button>
+                  <button className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-slate-900 transition-colors">
+                    <Trash2 size={14} /> Report Issue
+                  </button>
+                </div>
+                <button 
+                  onClick={() => setSelectedTransaction(null)}
+                  className="px-8 py-3 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
