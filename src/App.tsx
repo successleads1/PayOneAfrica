@@ -71,7 +71,7 @@ export default function App() {
         {/* Admin Route */}
         <Route
           path="/admin"
-          element={user?.email === 'feelathomeincapetown@gmail.com' ? <Admin /> : <Navigate to="/admin/login" />}
+          element={(user?.email === 'feelathomeincapetown@gmail.com' || localStorage.getItem('admin_auth') === 'true') ? <Admin /> : <Navigate to="/admin/login" />}
         />
       </Routes>
     </BrowserRouter>

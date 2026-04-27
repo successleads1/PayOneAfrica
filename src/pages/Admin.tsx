@@ -498,7 +498,10 @@ export default function Admin() {
               <Home size={20} />
             </Link>
             <button 
-              onClick={() => signOut(auth)}
+              onClick={() => {
+                localStorage.removeItem('admin_auth');
+                signOut(auth);
+              }}
               className="p-2 bg-slate-900 border border-slate-800 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all"
               title="Sign Out"
             >

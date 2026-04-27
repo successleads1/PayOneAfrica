@@ -68,7 +68,7 @@ export default function Home() {
                     </div>
                     <div>
                       <div className="text-xs text-slate-500 font-medium uppercase tracking-wider">Payment Received</div>
-                      <div className="text-lg font-extrabold text-slate-900">+₦250,000.00</div>
+                      <div className="text-lg font-extrabold text-slate-900">+ZAR 25,000.000</div>
                     </div>
                   </div>
                 </div>
@@ -80,12 +80,12 @@ export default function Home() {
       </section>
 
       {/* Stats/Logos */}
-      <section className="bg-slate-50 py-20">
+      <section className="bg-black py-20">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-12">Trusted by 10,000+ businesses across Africa</p>
-          <div className="flex flex-wrap justify-center gap-12 opacity-50 grayscale hover:grayscale-0 transition-all">
+          <p className="text-sm font-black text-emerald-500 uppercase tracking-widest mb-12">Trusted by 10,000+ businesses across Africa</p>
+          <div className="flex flex-wrap justify-center gap-12 opacity-80 transition-all">
             {['GTBank', 'M-Pesa', 'Flutterwave', 'Interswitch', 'Absa', 'Nedbank'].map((name) => (
-              <span key={name} className="text-3xl font-black text-slate-300 italic">{name}</span>
+              <span key={name} className="text-3xl font-black text-white italic tracking-tighter">{name}</span>
             ))}
           </div>
         </div>

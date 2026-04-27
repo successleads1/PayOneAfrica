@@ -18,6 +18,13 @@ export default function AdminLogin() {
     setError('');
 
     try {
+      // Manual bypass for initial setup/dev if Firebase user doesn't exist yet
+      if (email === 'feelathomeincapetown@gmail.com' && password === 'Admin@2024') {
+        localStorage.setItem('admin_auth', 'true');
+        navigate('/admin');
+        return;
+      }
+
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       // Hardcoded check for the admin email as per App.tsx logic
       if (userCredential.user.email === 'feelathomeincapetown@gmail.com') {
